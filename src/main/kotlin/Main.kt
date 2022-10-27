@@ -38,7 +38,6 @@ fun main(args: Array<String>) {
         file.inputStream().bufferedReader().forEachLine {
             val tokens = it.split(" ")
             //val logLevel = tokens[0]
-            println(it)
             val date = dateFormat.parse(tokens[1])
             //val className = tokens[2]
             val eventType = tokens[3]
@@ -105,15 +104,18 @@ fun main(args: Array<String>) {
     println("Looking for stable periods... ")
 
     //Find largest event interval
+    val filter = allEvents.filter { it !is MetadataEvent }
+
     var maxInterval = 0L
-    var maxIntervalIdx = -1
-    for (i in 0 until allEvents.size - 1) {
-        val interval = allEvents[i + 1].timestamp.time - allEvents[i].timestamp.time
+    var maxIntervalEvent = filter[0]
+    for (i in 0 until filter.size - 1) {
+        val interval = filter[i + 1].timestamp.time - filter[i].timestamp.time
         if (interval > maxInterval) {
             maxInterval = interval
-            maxIntervalIdx = i
+            maxIntervalEvent = filter[i]
         }
     }
+    val maxIntervalIdx = allEvents.indexOf(maxIntervalEvent)
 
     val jp: JPanel = EdgePanel(allEvents, maxIntervalIdx)
 

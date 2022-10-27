@@ -6,6 +6,8 @@ import org.jgrapht.graph.SimpleDirectedGraph
 import org.jungrapht.visualization.VisualizationScrollPane
 import org.jungrapht.visualization.VisualizationViewer
 import org.jungrapht.visualization.control.DefaultGraphMouse
+import org.jungrapht.visualization.control.GraphMouseListener
+import org.jungrapht.visualization.control.GraphMousePlugin
 import org.jungrapht.visualization.layout.algorithms.*
 import org.jungrapht.visualization.layout.algorithms.util.InitialDimensionFunction
 import org.jungrapht.visualization.layout.model.LayoutModel
@@ -16,6 +18,8 @@ import visualizer.layout.TreeVertex
 import visualizer.utils.*
 import java.awt.*
 import java.awt.event.ActionEvent
+import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
 import java.awt.geom.Ellipse2D
 import java.net.Inet4Address
 import java.text.SimpleDateFormat
@@ -26,7 +30,7 @@ import javax.swing.border.EmptyBorder
 import javax.swing.event.ChangeEvent
 
 
-class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() {
+class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() {
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss,SSS")
 
@@ -97,7 +101,7 @@ class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() 
 
         vv.renderContext.edgeLabelCloseness = 0.5f
         vv.renderContext.edgeLabelRenderer
-        vv.renderContext.setEdgeLabelFunction { if(vv.selectedVertices.contains(it.origin)) it.label else "" }
+        vv.renderContext.setEdgeLabelFunction { it.labelMe(vv) }
         vv.renderContext.setEdgeFontFunction { Font("Helvetica", Font.ITALIC, 12) }
 
         vv.setVertexToolTipFunction { v -> "${v.ts}\n${v.stableTs}" }
@@ -198,6 +202,30 @@ class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() 
         timeSlider.labelTable = markers
         timeSlider.paintLabels = true
 
+        val infoPanel = JPanel()
+        infoPanel.layout = BoxLayout(infoPanel, BoxLayout.Y_AXIS)
+        val infoPanelLabel = JLabel("Picked Vertex Info:")
+        val infoPanelText = JTextArea()
+        infoPanelText.isEditable = false
+        infoPanelText.lineWrap = true
+        infoPanel.add(infoPanelLabel)
+        infoPanel.add(infoPanelText)
+        add(infoPanel, BorderLayout.EAST)
+
+        graphMouse.add(object: MouseListener, GraphMousePlugin {
+            override fun mouseClicked(e: MouseEvent?) {
+                infoPanelText.text = ""
+                vv.selectedVertices.forEach {
+                    infoPanelText.text += it.panelText() + "\n"
+                }
+                println(infoPanelText.text)
+            }
+            override fun mousePressed(e: MouseEvent?) {}
+            override fun mouseReleased(e: MouseEvent?) {}
+            override fun mouseEntered(e: MouseEvent?) {}
+            override fun mouseExited(e: MouseEvent?) {}
+
+        })
 
         jumpToEvent(maxIntervalIdx, true)
     }
@@ -230,6 +258,7 @@ class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() 
             for (i in currentEvent + 1..targetEvent) {
                 processEvent(allEvents[i])
             }
+
             currentEvent = targetEvent
             sliderLabelCurrentLine.text = "$currentEvent/${allEvents.size - 1}"
             if (updateSlider) {
@@ -243,7 +272,6 @@ class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() 
     }
 
     private fun redraw() {
-
         val treeGraph = AsSubgraph(
             fullGraph, fullGraph.vertexSet(), fullGraph.edgeSet()
                 .filter { it.type == TreeEdge.Type.READY_CHILD }.toSet()
@@ -262,6 +290,7 @@ class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() 
         //LayoutAlgorithmTransition.animate(vv, treeLayoutAlgorithm)
         //vv.visualizationModel.layoutModel.accept(layoutAlgorithm)
         //vv.scaleToLayout(true)
+        vv.fireStateChanged()
         vv.repaint()
     }
 
@@ -296,9 +325,15 @@ class EdgePanel(val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() 
                 val vertex = vertexByName[event.node]!!
                 vertex.ts = event.ts
                 vertex.stableTs = event.stableTs
+                vertex.children.clear()
+                vertex.parents.clear()
                 event.children.forEach {
                     val childVertex = vertexByAddr[it.first]!!
-                    fullGraph.getEdge(vertex, childVertex).label = it.second
+                    vertex.children[childVertex] = it.second
+                }
+                event.parents.forEach {
+                    val parentVertex = vertexByAddr[it.first]!!
+                    vertex.parents[parentVertex] = it.second
                 }
             }
 
