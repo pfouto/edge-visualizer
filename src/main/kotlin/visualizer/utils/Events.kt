@@ -10,7 +10,8 @@ abstract class TreeEvent(val timestamp: Date, val node: String) {
     }
 }
 
-abstract class ViewEvent(timestamp: Date, node: String) : TreeEvent(timestamp, node)
+abstract class TreeViewEvent(timestamp: Date, node: String) : TreeEvent(timestamp, node)
+abstract class HyParViewEvent(timestamp: Date, node: String) : TreeEvent(timestamp, node)
 
 class HelloEvent(timestamp: Date, node: String, val addr: Inet4Address) : TreeEvent(timestamp, node) {
     override fun toString(): String {
@@ -24,6 +25,20 @@ class GoodbyeEvent(timestamp: Date, node: String) : TreeEvent(timestamp, node) {
     }
 }
 
+class ActiveEvent(timestamp: Date, node: String, val peer: Inet4Address, val added: Boolean) :
+    HyParViewEvent(timestamp, node) {
+    override fun toString(): String {
+        return "${super.toString()} Active ${peer.hostAddress} ${if (added) "added" else "removed"})"
+    }
+}
+
+class PassiveEvent(timestamp: Date, node: String, val peer: Inet4Address, val added: Boolean) :
+    HyParViewEvent(timestamp, node) {
+    override fun toString(): String {
+        return "${super.toString()} Passive ${peer.hostAddress} ${if (added) "added" else "removed"})"
+    }
+}
+
 class StateEvent(timestamp: Date, node: String, val state: TreeVertex.State) : TreeEvent(timestamp, node) {
     override fun toString(): String {
         return "${super.toString()} $state)"
@@ -31,14 +46,14 @@ class StateEvent(timestamp: Date, node: String, val state: TreeVertex.State) : T
 }
 
 class ParentEvent(timestamp: Date, node: String, val parent: Inet4Address, val state: ParentState) :
-    ViewEvent(timestamp, node) {
+    TreeViewEvent(timestamp, node) {
     override fun toString(): String {
         return "${super.toString()} Parent ${parent.hostAddress} is $state)"
     }
 }
 
 class ChildEvent(timestamp: Date, node: String, val child: Inet4Address, val state: ChildState) :
-    ViewEvent(timestamp, node) {
+    TreeViewEvent(timestamp, node) {
     override fun toString(): String {
         return "${super.toString()} Child ${child.hostAddress} is $state)"
     }
@@ -51,7 +66,7 @@ class MetadataEvent(
     val stableTs: String,
     val children: List<Pair<Inet4Address, String>>,
     val parents: List<Pair<Inet4Address, String>>,
-) : TreeEvent(timestamp, node){
+) : TreeEvent(timestamp, node) {
     override fun toString(): String {
         return "${super.toString()} Metadata $children $parents)"
     }

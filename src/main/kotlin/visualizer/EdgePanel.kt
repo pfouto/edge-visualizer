@@ -2,11 +2,10 @@ package visualizer
 
 import org.jgrapht.Graph
 import org.jgrapht.graph.AsSubgraph
-import org.jgrapht.graph.SimpleDirectedGraph
+import org.jgrapht.graph.DirectedMultigraph
 import org.jungrapht.visualization.VisualizationScrollPane
 import org.jungrapht.visualization.VisualizationViewer
 import org.jungrapht.visualization.control.DefaultGraphMouse
-import org.jungrapht.visualization.control.GraphMouseListener
 import org.jungrapht.visualization.control.GraphMousePlugin
 import org.jungrapht.visualization.layout.algorithms.*
 import org.jungrapht.visualization.layout.algorithms.util.InitialDimensionFunction
@@ -16,6 +15,7 @@ import org.jungrapht.visualization.renderers.Renderer
 import visualizer.layout.TreeEdge
 import visualizer.layout.TreeVertex
 import visualizer.utils.*
+import visualizer.utils.ActiveEvent
 import java.awt.*
 import java.awt.event.ActionEvent
 import java.awt.event.MouseEvent
@@ -25,6 +25,7 @@ import java.net.Inet4Address
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.function.Function
+import java.util.function.Predicate
 import javax.swing.*
 import javax.swing.border.EmptyBorder
 import javax.swing.event.ChangeEvent
@@ -53,7 +54,8 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
 
     init {
 
-        fullGraph = SimpleDirectedGraph(TreeEdge::class.java)
+        //fullGraph = SimpleDirectedGraph(TreeEdge::class.java)
+        fullGraph = DirectedMultigraph(TreeEdge::class.java)
 
         layout = BorderLayout()
 
@@ -93,6 +95,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
         vv.renderContext.setVertexFontFunction { Font("Helvetica", Font.BOLD, 12) }
         //vv.renderContext.setVertexDrawPaintFunction { Color.YELLOW }
         vv.renderContext.setVertexFillPaintFunction { v -> v.paintMe(vv) }
+        vv.renderContext.setEdgeIncludePredicate { e -> e.includeMe(vv) }
         vv.renderContext.setEdgeDrawPaintFunction { e -> e.paintMe(vv) }
         vv.renderContext.setArrowDrawPaintFunction { e -> e.paintMe(vv) }
         vv.renderContext.setArrowFillPaintFunction { e -> e.paintMe(vv) }
@@ -196,7 +199,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 is HelloEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelHello
                 is StateEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelState
                 is GoodbyeEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelGoodbye
-                is ViewEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelView
+                is TreeViewEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelView
             }
         }
         timeSlider.labelTable = markers
@@ -212,7 +215,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
         infoPanel.add(infoPanelText)
         add(infoPanel, BorderLayout.EAST)
 
-        graphMouse.add(object: MouseListener, GraphMousePlugin {
+        graphMouse.add(object : MouseListener, GraphMousePlugin {
             override fun mouseClicked(e: MouseEvent?) {
                 infoPanelText.text = ""
                 vv.selectedVertices.forEach {
@@ -220,6 +223,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 }
                 println(infoPanelText.text)
             }
+
             override fun mousePressed(e: MouseEvent?) {}
             override fun mouseReleased(e: MouseEvent?) {}
             override fun mouseEntered(e: MouseEvent?) {}
@@ -314,6 +318,23 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                     checkIfCanDelete(it.destiny)
                 }
                 checkIfCanDelete(vertex)
+            }
+
+            is ActiveEvent -> {
+                val vertex = vertexByName[event.node]!!
+                val peer = vertexByAddr[event.peer]!!
+                if (event.added)
+                    fullGraph.addEdge(vertex, peer, TreeEdge(vertex, peer, TreeEdge.Type.VIEW_ACTIVE))
+                else
+                    fullGraph.removeEdge(vertex, peer)
+            }
+            is PassiveEvent -> {
+                val vertex = vertexByName[event.node]!!
+                val peer = vertexByAddr[event.peer]!!
+                if (event.added)
+                    fullGraph.addEdge(vertex, peer, TreeEdge(vertex, peer, TreeEdge.Type.VIEW_PASSIVE))
+                else
+                    fullGraph.removeEdge(vertex, peer)
             }
 
             is StateEvent -> {

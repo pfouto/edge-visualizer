@@ -5,7 +5,6 @@ import java.io.File
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.text.SimpleDateFormat
-import java.util.*
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.WindowConstants
@@ -48,6 +47,14 @@ fun main(args: Array<String>) {
                     allEvents.add(HelloEvent(date, node!!, nodeAddr))
                 }
                 "Goodbye" -> allEvents.add(GoodbyeEvent(date, node!!))
+                "PASSIVE" -> {
+                    val peer = InetAddress.getByName(tokens[5]) as Inet4Address
+                    allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
+                }
+                "ACTIVE" -> {
+                    val peer = InetAddress.getByName(tokens[5]) as Inet4Address
+                    allEvents.add(ActiveEvent(date, node!!, peer, tokens[4] == "Added"))
+                }
                 "STATE" -> {
                     val newState = TreeVertex.State.valueOf(tokens[4])
                     allEvents.add(StateEvent(date, node!!, newState))
@@ -104,7 +111,7 @@ fun main(args: Array<String>) {
     println("Looking for stable periods... ")
 
     //Find largest event interval
-    val filter = allEvents.filter { it !is MetadataEvent }
+    val filter = allEvents.filter { it !is MetadataEvent && it !is HyParViewEvent }
 
     var maxInterval = 0L
     var maxIntervalEvent = filter[0]

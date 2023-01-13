@@ -5,7 +5,7 @@ import java.awt.Color
 
 class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) {
 
-    enum class Type { CONNECTING_PARENT, SYNC_PARENT, READY_PARENT, SYNC_CHILD, READY_CHILD }
+    enum class Type { CONNECTING_PARENT, SYNC_PARENT, READY_PARENT, SYNC_CHILD, READY_CHILD, VIEW_ACTIVE, VIEW_PASSIVE }
 
     fun paintMe(vv: VisualizationViewer<TreeVertex, TreeEdge>): Color {
         return when (type) {
@@ -14,6 +14,16 @@ class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) 
             Type.READY_PARENT -> Color.BLUE.darker()
             Type.SYNC_CHILD -> Color.GREEN.brighter()
             Type.READY_CHILD -> Color.GREEN.darker()
+            Type.VIEW_PASSIVE -> Color.YELLOW.darker()
+            Type.VIEW_ACTIVE -> Color.ORANGE.darker()
+        }
+    }
+
+    fun includeMe(vv: VisualizationViewer<TreeVertex, TreeEdge>): Boolean {
+        return if(vv.selectedVertices.contains(origin)){
+            true
+        } else {
+            this.type != Type.VIEW_ACTIVE && this.type != Type.VIEW_PASSIVE
         }
     }
 
