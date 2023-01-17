@@ -221,7 +221,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 vv.selectedVertices.forEach {
                     infoPanelText.text += it.panelText() + "\n"
                 }
-                println(infoPanelText.text)
+                //println(infoPanelText.text)
             }
 
             override fun mousePressed(e: MouseEvent?) {}
@@ -320,21 +320,25 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 checkIfCanDelete(vertex)
             }
 
+            //TODO probably need to remove the exact vertex (this could remove a tree vertex)
             is ActiveEvent -> {
                 val vertex = vertexByName[event.node]!!
                 val peer = vertexByAddr[event.peer]!!
                 if (event.added)
                     fullGraph.addEdge(vertex, peer, TreeEdge(vertex, peer, TreeEdge.Type.VIEW_ACTIVE))
                 else
-                    fullGraph.removeEdge(vertex, peer)
+                    if (!fullGraph.removeEdge(TreeEdge(vertex, peer, TreeEdge.Type.VIEW_ACTIVE)))
+                        throw Exception("Edge not found")
             }
+
             is PassiveEvent -> {
                 val vertex = vertexByName[event.node]!!
                 val peer = vertexByAddr[event.peer]!!
                 if (event.added)
                     fullGraph.addEdge(vertex, peer, TreeEdge(vertex, peer, TreeEdge.Type.VIEW_PASSIVE))
                 else
-                    fullGraph.removeEdge(vertex, peer)
+                    if (!fullGraph.removeEdge(TreeEdge(vertex, peer, TreeEdge.Type.VIEW_PASSIVE)))
+                        throw Exception("Edge not found")
             }
 
             is StateEvent -> {
@@ -366,17 +370,21 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                         fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.CONNECTING_PARENT))
 
                     ParentState.SYNC -> {
-                        fullGraph.removeEdge(vertex, parent)
+                        if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.CONNECTING_PARENT)))
+                            throw Exception("Edge not found")
                         fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT))
                     }
 
                     ParentState.READY -> {
-                        fullGraph.removeEdge(vertex, parent)
+                        if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT)))
+                            throw Exception("Edge not found")
                         fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.READY_PARENT))
                     }
 
                     ParentState.DISCONNECTED -> {
-                        fullGraph.removeEdge(vertex, parent)
+                        val r1 = fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT))
+                        val r2= fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.READY_PARENT))
+                        if(r1 xor r2) throw Exception("Edge not found")
                         checkIfCanDelete(parent)
                     }
                 }
@@ -390,12 +398,15 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                         fullGraph.addEdge(vertex, child, TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
 
                     ChildState.READY -> {
-                        fullGraph.removeEdge(vertex, child)
+                        if (!fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD)))
+                            throw Exception("Edge not found")
                         fullGraph.addEdge(vertex, child, TreeEdge(vertex, child, TreeEdge.Type.READY_CHILD))
                     }
 
                     ChildState.DISCONNECTED -> {
-                        fullGraph.removeEdge(vertex, child)
+                        val r1 = fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
+                        val r2= fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.READY_CHILD))
+                        if(r1 xor r2) throw Exception("Edge not found")
                         checkIfCanDelete(child)
                     }
                 }
