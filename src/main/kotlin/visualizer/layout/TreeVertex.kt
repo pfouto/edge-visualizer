@@ -42,10 +42,12 @@ class TreeVertex(val node: String, val addr: Inet4Address) {
     }
 
     fun paintMe(vv: VisualizationViewer<TreeVertex, TreeEdge>): Color {
-        return if (!alive) Color.BLACK
-        else if (vv.selectedVertices.contains(this)) Color.RED
+        val selected = vv.selectedVertices.contains(this)
+        return if (!alive && !selected ) Color.BLACK
+        else if (!alive && selected) Color.DARK_GRAY.brighter()
+        else if (selected) Color.RED
         else when (state){
-            State.DORMANT -> Color.GRAY
+            State.DORMANT -> Color.LIGHT_GRAY
             State.LEAF -> Color.GREEN
             State.ROOT -> Color.BLUE
         }

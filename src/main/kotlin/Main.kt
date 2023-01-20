@@ -47,10 +47,10 @@ fun main(args: Array<String>) {
                     allEvents.add(HelloEvent(date, node!!, nodeAddr))
                 }
                 "Goodbye" -> allEvents.add(GoodbyeEvent(date, node!!))
-                "PASSIVE" -> {
+                /*"PASSIVE" -> {
                     val peer = InetAddress.getByName(tokens[5]) as Inet4Address
                     allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
-                }
+                }*/
                 "ACTIVE" -> {
                     val peer = InetAddress.getByName(tokens[5]) as Inet4Address
                     allEvents.add(ActiveEvent(date, node!!, peer, tokens[4] == "Added"))

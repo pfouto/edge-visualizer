@@ -7,7 +7,10 @@ import org.jungrapht.visualization.VisualizationScrollPane
 import org.jungrapht.visualization.VisualizationViewer
 import org.jungrapht.visualization.control.DefaultGraphMouse
 import org.jungrapht.visualization.control.GraphMousePlugin
-import org.jungrapht.visualization.layout.algorithms.*
+import org.jungrapht.visualization.layout.algorithms.LayoutAlgorithm
+import org.jungrapht.visualization.layout.algorithms.RadialTreeLayoutAlgorithm
+import org.jungrapht.visualization.layout.algorithms.StaticLayoutAlgorithm
+import org.jungrapht.visualization.layout.algorithms.TreeLayoutAlgorithm
 import org.jungrapht.visualization.layout.algorithms.util.InitialDimensionFunction
 import org.jungrapht.visualization.layout.model.LayoutModel
 import org.jungrapht.visualization.layout.model.Rectangle
@@ -25,10 +28,10 @@ import java.net.Inet4Address
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.function.Function
-import java.util.function.Predicate
 import javax.swing.*
 import javax.swing.border.EmptyBorder
 import javax.swing.event.ChangeEvent
+import javax.swing.event.ListSelectionEvent
 
 
 class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() {
@@ -50,6 +53,8 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
     private val startTimeMillis: Long
     private val endTimeMillis: Long
     private var internalChanging = false
+
+    private val eventsList: JList<TreeEvent>
 
 
     init {
@@ -115,17 +120,17 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
 
         // STEPS
         val prev = JButton("<")
-        prev.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent - 1, true) }
+        prev.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent - 1, true, true) }
         val prev10 = JButton("<<")
-        prev10.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent - 10, true) }
+        prev10.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent - 10, true, true) }
         val prev100 = JButton("<<<")
-        prev100.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent - 100, true) }
+        prev100.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent - 100, true, true) }
         val next = JButton(">")
-        next.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent + 1, true) }
+        next.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent + 1, true, true) }
         val next10 = JButton(">>")
-        next10.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent + 10, true) }
+        next10.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent + 10, true, true) }
         val next100 = JButton(">>>")
-        next100.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent + 100, true) }
+        next100.addActionListener { e: ActionEvent? -> jumpToEvent(currentEvent + 100, true, true) }
         val stepGrid = JPanel(GridLayout(1, 0))
         stepGrid.border = BorderFactory.createTitledBorder("Steps (1, 10 or 100)")
 
@@ -215,23 +220,41 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
         infoPanel.add(infoPanelText)
         add(infoPanel, BorderLayout.EAST)
 
+        val eventsPanel = JPanel()
+        eventsPanel.layout = BoxLayout(eventsPanel, BoxLayout.Y_AXIS)
+        val eventsPanelLabel = JLabel("All events:")
+        eventsList = JList(allEvents.toTypedArray())
+
+        eventsList.addListSelectionListener { e: ListSelectionEvent ->
+            val source = e.source as JList<*>
+            jumpToEvent(source.selectedIndex, true, false)
+        }
+
+        val scrollPanel = JScrollPane(eventsList)
+        scrollPanel.preferredSize = Dimension(500, 0)
+        scrollPanel.horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS;
+        scrollPanel.verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS;
+        eventsPanel.add(eventsPanelLabel)
+        eventsPanel.add(scrollPanel)
+        add(eventsPanel, BorderLayout.WEST)
+
+
         graphMouse.add(object : MouseListener, GraphMousePlugin {
-            override fun mouseClicked(e: MouseEvent?) {
+            override fun mouseClicked(e: MouseEvent?) {}
+            override fun mousePressed(e: MouseEvent?) {}
+
+            override fun mouseReleased(e: MouseEvent?) {
                 infoPanelText.text = ""
                 vv.selectedVertices.forEach {
                     infoPanelText.text += it.panelText() + "\n"
                 }
-                //println(infoPanelText.text)
             }
 
-            override fun mousePressed(e: MouseEvent?) {}
-            override fun mouseReleased(e: MouseEvent?) {}
             override fun mouseEntered(e: MouseEvent?) {}
             override fun mouseExited(e: MouseEvent?) {}
-
         })
 
-        jumpToEvent(maxIntervalIdx, true)
+        jumpToEvent(maxIntervalIdx, true, true)
     }
 
     private fun jumpToTime(ts: Int) {
@@ -241,11 +264,11 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
         while (target < allEvents.size - 1 && allEvents[target + 1].timestamp.time <= targetTime) {
             target++
         }
-        jumpToEvent(target, false)
+        jumpToEvent(target, false, true)
     }
 
 
-    private fun jumpToEvent(_targetEvent: Int, updateSlider: Boolean) {
+    private fun jumpToEvent(_targetEvent: Int, updateSlider: Boolean, updateList: Boolean) {
         SwingUtilities.invokeLater {
             var targetEvent = _targetEvent
             if (targetEvent > allEvents.size - 1) targetEvent = allEvents.size - 1
@@ -269,6 +292,11 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 internalChanging = true
                 timeSlider.value = ((allEvents[currentEvent].timestamp.time - startTimeMillis).toInt())
                 internalChanging = false
+            }
+
+            if(updateList){
+                eventsList.selectedIndex = currentEvent
+                eventsList.ensureIndexIsVisible(currentEvent)
             }
 
             redraw()
@@ -406,7 +434,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                     ChildState.DISCONNECTED -> {
                         val r1 = fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
                         val r2= fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.READY_CHILD))
-                        if(r1 xor r2) throw Exception("Edge not found")
+                        if(!(r1 xor r2)) throw Exception("Child disconnect edge not found: $vertex $child")
                         checkIfCanDelete(child)
                     }
                 }
@@ -415,6 +443,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
     }
 
     private fun checkIfCanDelete(vertex: TreeVertex) {
+        return
         if (!vertex.alive && fullGraph.incomingEdgesOf(vertex).isEmpty()) {
             fullGraph.removeVertex(vertex)
             vertexByName.remove(vertex.node)
