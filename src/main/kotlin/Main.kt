@@ -18,7 +18,7 @@ fun main(args: Array<String>) {
         return
     }
 
-    val allEvents: MutableList<TreeEvent> = mutableListOf()
+    val allEvents: MutableList<Event> = mutableListOf()
 
     println("Reading log files from ${args[0]}... ")
     val folder = File(args[0])
@@ -41,34 +41,43 @@ fun main(args: Array<String>) {
             //val className = tokens[2]
             val eventType = tokens[3]
             when(eventType){
+                //General events
                 "Hello" -> {
                     node = tokens[6]
                     val nodeAddr = InetAddress.getByName(tokens[7]) as Inet4Address
                     allEvents.add(HelloEvent(date, node!!, nodeAddr))
                 }
                 "Goodbye" -> allEvents.add(GoodbyeEvent(date, node!!))
-                /*"PASSIVE" -> {
-                    val peer = InetAddress.getByName(tokens[5]) as Inet4Address
-                    allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
-                }*/
+
+                //HyParView events
                 "ACTIVE" -> {
                     val peer = InetAddress.getByName(tokens[5]) as Inet4Address
                     allEvents.add(ActiveEvent(date, node!!, peer, tokens[4] == "Added"))
                 }
-                "STATE" -> {
+                /*"PASSIVE" -> {
+                    val peer = InetAddress.getByName(tokens[5]) as Inet4Address
+                    allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
+                }*/
+
+                //Manager Events
+                "MANAGER-STATE" -> {
                     val newState = TreeVertex.State.valueOf(tokens[4])
-                    allEvents.add(StateEvent(date, node!!, newState))
+                    allEvents.add(ManagerStateEvent(date, node!!, newState))
                 }
+
+                //Tree structure events
                 "CHILD" -> {
                     val newState = ChildState.valueOf(tokens[4])
                     val childAddr = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
                     allEvents.add(ChildEvent(date, node!!, childAddr, newState))
                 }
-                "PARENT" -> {
+                "TREE-STATE" -> {
                     val newState = ParentState.valueOf(tokens[4])
                     val parentAddr = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
-                    allEvents.add(ParentEvent(date, node!!, parentAddr, newState))
+                    allEvents.add(TreeStateEvent(date, node!!, parentAddr, newState))
                 }
+
+                //Metadata
                 "METADATA" -> {
                     val children = mutableListOf<Pair<Inet4Address, String>>()
                     val parents = mutableListOf<Pair<Inet4Address, String>>()

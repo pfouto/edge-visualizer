@@ -19,6 +19,7 @@ import visualizer.layout.TreeEdge
 import visualizer.layout.TreeVertex
 import visualizer.utils.*
 import visualizer.utils.ActiveEvent
+import visualizer.utils.Event
 import java.awt.*
 import java.awt.event.ActionEvent
 import java.awt.event.MouseEvent
@@ -34,7 +35,7 @@ import javax.swing.event.ChangeEvent
 import javax.swing.event.ListSelectionEvent
 
 
-class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : JPanel() {
+class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPanel() {
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss,SSS")
 
@@ -54,7 +55,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
     private val endTimeMillis: Long
     private var internalChanging = false
 
-    private val eventsList: JList<TreeEvent>
+    private val eventsList: JList<Event>
 
 
     init {
@@ -202,9 +203,9 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
         for (event in allEvents) {
             when (event) {
                 is HelloEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelHello
-                is StateEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelState
+                is ManagerStateEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelState
                 is GoodbyeEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelGoodbye
-                is TreeViewEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelView
+                is TreeEvent -> markers[(event.timestamp.time - startTimeMillis).toInt()] = eventLabelView
             }
         }
         timeSlider.labelTable = markers
@@ -328,7 +329,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
 
     private val vertexByName: MutableMap<String, TreeVertex> = mutableMapOf()
     private val vertexByAddr: MutableMap<Inet4Address, TreeVertex> = mutableMapOf()
-    private fun processEvent(event: TreeEvent) {
+    private fun processEvent(event: Event) {
         //println(event)
         when (event) {
             is HelloEvent -> {
@@ -348,7 +349,6 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 checkIfCanDelete(vertex)
             }
 
-            //TODO probably need to remove the exact vertex (this could remove a tree vertex)
             is ActiveEvent -> {
                 val vertex = vertexByName[event.node]!!
                 val peer = vertexByAddr[event.peer]!!
@@ -369,7 +369,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                         throw Exception("Edge not found")
             }
 
-            is StateEvent -> {
+            is ManagerStateEvent -> {
                 val vertex = vertexByName[event.node]!!
                 vertex.state = event.state
             }
@@ -390,7 +390,7 @@ class EdgePanel(private val allEvents: List<TreeEvent>, maxIntervalIdx: Int) : J
                 }
             }
 
-            is ParentEvent -> {
+            is TreeStateEvent -> {
                 val vertex = vertexByName[event.node]!!
                 val parent = vertexByAddr[event.parent]!!
                 when (event.state) {

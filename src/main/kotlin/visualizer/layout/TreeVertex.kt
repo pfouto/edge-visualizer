@@ -6,10 +6,11 @@ import java.net.Inet4Address
 
 class TreeVertex(val node: String, val addr: Inet4Address) {
 
-    enum class State { DORMANT, LEAF, ROOT }
+    enum class State { ACTIVE, INACTIVE }
+    enum class TreeState { ACTIVE, INACTIVE }
 
     var alive = true
-    var state = State.DORMANT
+    var state = State.INACTIVE
 
     var ts = ""
     var stableTs = ""
@@ -47,9 +48,8 @@ class TreeVertex(val node: String, val addr: Inet4Address) {
         else if (!alive && selected) Color.DARK_GRAY.brighter()
         else if (selected) Color.RED
         else when (state){
-            State.DORMANT -> Color.LIGHT_GRAY
-            State.LEAF -> Color.GREEN
-            State.ROOT -> Color.BLUE
+            State.INACTIVE -> Color.LIGHT_GRAY
+            State.ACTIVE -> Color.GREEN
         }
     }
 
