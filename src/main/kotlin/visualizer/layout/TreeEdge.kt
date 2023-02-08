@@ -5,12 +5,23 @@ import java.awt.Color
 
 class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) {
 
+    companion object {
+        fun treeStateToEdgeType(treeState: TreeVertex.TreeState): Type {
+            return when (treeState) {
+                TreeVertex.TreeState.PARENT_CONNECTING -> Type.CONNECTING_PARENT
+                TreeVertex.TreeState.PARENT_SYNC -> Type.SYNC_PARENT
+                TreeVertex.TreeState.PARENT_READY -> Type.READY_PARENT
+                else -> throw IllegalArgumentException("Invalid tree state")
+            }
+        }
+    }
+
     enum class Type { CONNECTING_PARENT, SYNC_PARENT, READY_PARENT, SYNC_CHILD, READY_CHILD, VIEW_ACTIVE, VIEW_PASSIVE }
 
     fun paintMe(vv: VisualizationViewer<TreeVertex, TreeEdge>): Color {
         return when (type) {
             Type.CONNECTING_PARENT -> Color.CYAN
-            Type.SYNC_PARENT -> Color.BLUE.brighter()
+            Type.SYNC_PARENT -> Color.BLUE
             Type.READY_PARENT -> Color.BLUE.darker()
             Type.SYNC_CHILD -> Color.GREEN.brighter()
             Type.READY_CHILD -> Color.GREEN.darker()
@@ -32,10 +43,10 @@ class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) 
         if (type == Type.READY_CHILD && vv.selectedVertices.contains(origin) && origin.children[destiny] != null)
             ret = origin.children[destiny]!!
         else if (type == Type.READY_PARENT) {
-            vv.selectedVertices.forEach {
+            /*vv.selectedVertices.forEach {
                 if (it.parents[destiny] != null && (origin == it || it.parents[origin] != null))
                     ret += " "+it.parents[destiny]!!
-            }
+            }*/
         }
         return ret
     }

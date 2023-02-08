@@ -57,6 +57,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
 
     private val eventsList: JList<Event>
 
+    private val infoPanelText: JTextArea
 
     init {
 
@@ -214,7 +215,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         val infoPanel = JPanel()
         infoPanel.layout = BoxLayout(infoPanel, BoxLayout.Y_AXIS)
         val infoPanelLabel = JLabel("Picked Vertex Info:")
-        val infoPanelText = JTextArea()
+        infoPanelText = JTextArea()
         infoPanelText.isEditable = false
         infoPanelText.lineWrap = true
         infoPanel.add(infoPanelLabel)
@@ -245,10 +246,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
             override fun mousePressed(e: MouseEvent?) {}
 
             override fun mouseReleased(e: MouseEvent?) {
-                infoPanelText.text = ""
-                vv.selectedVertices.forEach {
-                    infoPanelText.text += it.panelText() + "\n"
-                }
+                reloadInfoPanel()
             }
 
             override fun mouseEntered(e: MouseEvent?) {}
@@ -256,6 +254,14 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         })
 
         jumpToEvent(maxIntervalIdx, true, true)
+    }
+
+    private fun reloadInfoPanel(){
+        println("reloadInfoPanel")
+        infoPanelText.text = ""
+        vv.selectedVertices.forEach {
+            infoPanelText.text += it.panelText() + "\n"
+        }
     }
 
     private fun jumpToTime(ts: Int) {
@@ -300,6 +306,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
                 eventsList.ensureIndexIsVisible(currentEvent)
             }
 
+            reloadInfoPanel()
             redraw()
         }
     }
@@ -352,68 +359,90 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
             is ActiveEvent -> {
                 val vertex = vertexByName[event.node]!!
                 val peer = vertexByAddr[event.peer]!!
-                if (event.added)
+                if (event.added) {
                     fullGraph.addEdge(vertex, peer, TreeEdge(vertex, peer, TreeEdge.Type.VIEW_ACTIVE))
-                else
+                    vertex.active.add(peer)
+                } else {
+                    vertex.active.remove(peer)
                     if (!fullGraph.removeEdge(TreeEdge(vertex, peer, TreeEdge.Type.VIEW_ACTIVE)))
                         throw Exception("Edge not found")
+                }
             }
 
             is PassiveEvent -> {
                 val vertex = vertexByName[event.node]!!
                 val peer = vertexByAddr[event.peer]!!
-                if (event.added)
+                if (event.added) {
+                    vertex.passive.add(peer)
                     fullGraph.addEdge(vertex, peer, TreeEdge(vertex, peer, TreeEdge.Type.VIEW_PASSIVE))
-                else
+                } else {
+                    vertex.passive.remove(peer)
                     if (!fullGraph.removeEdge(TreeEdge(vertex, peer, TreeEdge.Type.VIEW_PASSIVE)))
                         throw Exception("Edge not found")
+                }
             }
 
             is ManagerStateEvent -> {
                 val vertex = vertexByName[event.node]!!
-                vertex.state = event.state
-            }
-
-            is MetadataEvent -> {
-                val vertex = vertexByName[event.node]!!
-                vertex.ts = event.ts
-                vertex.stableTs = event.stableTs
-                vertex.children.clear()
-                vertex.parents.clear()
-                event.children.forEach {
-                    val childVertex = vertexByAddr[it.first]!!
-                    vertex.children[childVertex] = it.second
-                }
-                event.parents.forEach {
-                    val parentVertex = vertexByAddr[it.first]!!
-                    vertex.parents[parentVertex] = it.second
-                }
+                vertex.managerState = event.state
             }
 
             is TreeStateEvent -> {
                 val vertex = vertexByName[event.node]!!
-                val parent = vertexByAddr[event.parent]!!
-                when (event.state) {
-                    ParentState.CONNECTING ->
-                        fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.CONNECTING_PARENT))
+                val oldState = vertex.treeState
+                val oldParent = vertex.parent
 
-                    ParentState.SYNC -> {
+                vertex.treeState = event.state
+
+                when (event.state) {
+                    TreeVertex.TreeState.PARENT_CONNECTING -> {
+                        val newParent = vertexByAddr[event.parent]!!
+                        if(oldParent != null) {
+                            if (!fullGraph.removeEdge(TreeEdge(vertex, oldParent, TreeEdge.treeStateToEdgeType(oldState))))
+                                throw Exception("Edge not found")
+                        }
+
+                        vertex.parent = newParent
+                        vertex.grandparents = event.grandparents.map { vertexByAddr[it]!! }.toMutableList()
+                        vertex.parentMetadata = mutableListOf()
+
+                        fullGraph.addEdge(vertex, newParent, TreeEdge(vertex, newParent, TreeEdge.Type.CONNECTING_PARENT))
+                    }
+
+                    TreeVertex.TreeState.PARENT_SYNC -> {
+                        val parent = vertexByAddr[event.parent]!!
                         if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.CONNECTING_PARENT)))
                             throw Exception("Edge not found")
                         fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT))
+
+                        vertex.grandparents = event.grandparents.map { vertexByAddr[it]!! }.toMutableList()
+                        vertex.parentMetadata = mutableListOf()
                     }
 
-                    ParentState.READY -> {
-                        if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT)))
+                    TreeVertex.TreeState.PARENT_READY -> {
+                        val parent = vertexByAddr[event.parent]!!
+                        if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.treeStateToEdgeType(oldState))))
                             throw Exception("Edge not found")
                         fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.READY_PARENT))
+
+                        vertex.grandparents = event.grandparents.map { vertexByAddr[it]!! }.toMutableList()
+                        vertex.parentMetadata = mutableListOf()
+
                     }
 
-                    ParentState.DISCONNECTED -> {
-                        val r1 = fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT))
-                        val r2= fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.READY_PARENT))
-                        if(r1 xor r2) throw Exception("Edge not found")
-                        checkIfCanDelete(parent)
+                    TreeVertex.TreeState.INACTIVE -> {
+                        if(oldParent != null) {
+                            if (!fullGraph.removeEdge(TreeEdge(vertex, oldParent, TreeEdge.treeStateToEdgeType(oldState))))
+                                throw Exception("Edge not found")
+                            checkIfCanDelete(oldParent)
+                        }
+                        vertex.grandparents = mutableListOf()
+                        vertex.parentMetadata = mutableListOf()
+                    }
+
+                    TreeVertex.TreeState.DATACENTER -> {
+                        vertex.grandparents = mutableListOf()
+                        vertex.parentMetadata = mutableListOf()
                     }
                 }
             }
@@ -422,8 +451,10 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
                 val vertex = vertexByName[event.node]!!
                 val child = vertexByAddr[event.child]!!
                 when (event.state) {
-                    ChildState.SYNC ->
+                    ChildState.SYNC -> {
                         fullGraph.addEdge(vertex, child, TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
+                        vertex.children[child] = ""
+                    }
 
                     ChildState.READY -> {
                         if (!fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD)))
@@ -435,13 +466,27 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
                         val r1 = fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
                         val r2= fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.READY_CHILD))
                         if(!(r1 xor r2)) throw Exception("Child disconnect edge not found: $vertex $child")
+                        if(vertex.children.remove(child) == null) throw Exception("Child not found")
                         checkIfCanDelete(child)
                     }
                 }
             }
+
+            is ParentMetadata -> {
+                val vertex = vertexByName[event.node]!!
+                vertex.parentMetadata = event.metadata
+            }
+
+            is ChildMetadata -> {
+                val vertex = vertexByName[event.node]!!
+                val child = vertexByAddr[event.child]!!
+                if(!vertex.children.containsKey(child)) throw Exception("Child not found")
+                vertex.children[child] = event.metadata
+            }
         }
     }
 
+    //TODO
     private fun checkIfCanDelete(vertex: TreeVertex) {
         return
         if (!vertex.alive && fullGraph.incomingEdgesOf(vertex).isEmpty()) {

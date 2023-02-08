@@ -13,7 +13,7 @@ val dateFormat = SimpleDateFormat("yyyy/MM/dd-HH:mm:ss,SSS")
 
 fun main(args: Array<String>) {
 
-    if(args.isEmpty()){
+    if (args.isEmpty()) {
         println("Usage: java -jar visualizer.jar <path-to-logs>")
         return
     }
@@ -34,20 +34,27 @@ fun main(args: Array<String>) {
         }
         println(file.name)
         var node: String? = null
+        var goodbye = false
         file.inputStream().bufferedReader().forEachLine {
+            if (goodbye) return@forEachLine
+
             val tokens = it.split(" ")
             //val logLevel = tokens[0]
             val date = dateFormat.parse(tokens[1])
             //val className = tokens[2]
             val eventType = tokens[3]
-            when(eventType){
+            when (eventType) {
                 //General events
                 "Hello" -> {
                     node = tokens[6]
                     val nodeAddr = InetAddress.getByName(tokens[7]) as Inet4Address
                     allEvents.add(HelloEvent(date, node!!, nodeAddr))
                 }
-                "Goodbye" -> allEvents.add(GoodbyeEvent(date, node!!))
+
+                "Goodbye" -> {
+                    allEvents.add(GoodbyeEvent(date, node!!))
+                    goodbye = true
+                }
 
                 //HyParView events
                 "ACTIVE" -> {
@@ -55,61 +62,59 @@ fun main(args: Array<String>) {
                     allEvents.add(ActiveEvent(date, node!!, peer, tokens[4] == "Added"))
                 }
                 /*"PASSIVE" -> {
-                    val peer = InetAddress.getByName(tokens[5]) as Inet4Address
-                    allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
-                }*/
+                val peer = InetAddress.getByName(tokens[5]) as Inet4Address
+                allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
+            }*/
 
                 //Manager Events
                 "MANAGER-STATE" -> {
-                    val newState = TreeVertex.State.valueOf(tokens[4])
+                    val newState = TreeVertex.ManagerState.valueOf(tokens[4])
                     allEvents.add(ManagerStateEvent(date, node!!, newState))
                 }
 
                 //Tree structure events
+                "TREE-STATE" -> {
+                    val newState = TreeVertex.TreeState.valueOf(tokens[4])
+
+                    var parentAddress: Inet4Address? = null
+                    val grandparents: MutableList<Inet4Address> = mutableListOf()
+
+                    if (newState != TreeVertex.TreeState.INACTIVE && newState != TreeVertex.TreeState.DATACENTER) {
+                        parentAddress = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
+
+                        val rawGrandparents = tokens[6]
+                        //Remove surrounding brackets and split by comma and trim
+                        val grandparentsString =
+                            rawGrandparents.substring(1, rawGrandparents.length - 1).trim().split(",")
+
+                        for (grandparent in grandparentsString) {
+                            if (grandparent.isEmpty()) continue
+                            grandparents.add(InetAddress.getByName(grandparent.split(":")[0]) as Inet4Address)
+                        }
+                    }
+
+                    allEvents.add(TreeStateEvent(date, node!!, parentAddress, newState, grandparents))
+                }
+
+                "PARENT-METADATA" -> {
+                    val metadataRaw = tokens[4]
+                    val metadatas = metadataRaw.substring(1, metadataRaw.length - 1).split(":")
+                    allEvents.add(ParentMetadata(date, node!!, metadatas))
+                }
+
                 "CHILD" -> {
                     val newState = ChildState.valueOf(tokens[4])
                     val childAddr = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
                     allEvents.add(ChildEvent(date, node!!, childAddr, newState))
                 }
-                "TREE-STATE" -> {
-                    val newState = ParentState.valueOf(tokens[4])
-                    val parentAddr = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
-                    allEvents.add(TreeStateEvent(date, node!!, parentAddr, newState))
-                }
 
-                //Metadata
-                "METADATA" -> {
-                    val children = mutableListOf<Pair<Inet4Address, String>>()
-                    val parents = mutableListOf<Pair<Inet4Address, String>>()
-                    val ts = tokens[4]
-                    val stableTs = tokens[5]
-                    val childrenString = tokens[6].split("_")
-                    val parentsString = tokens[7].split("_")
-
-                    if(childrenString[1].isNotEmpty()){
-                        val allChildren = childrenString[1].split(";")
-                        for(child in allChildren){
-                            if(child.isEmpty()) continue
-                            val childTokens = child.split("-")
-                            val childAddr = InetAddress.getByName(childTokens[0].split(":")[0]) as Inet4Address
-                            val childState = childTokens[1]
-                            children.add(Pair(childAddr, childState))
-                        }
-                    }
-                    if(parentsString[1].isNotEmpty()){
-                        val allParents = parentsString[1].split(";")
-                        for(parent in allParents){
-                            if(parent.isEmpty())continue
-                            val parentTokens = parent.split("-")
-                            val parentAddr = InetAddress.getByName(parentTokens[0].split(":")[0]) as Inet4Address
-                            val parentState = parentTokens[1]
-                            parents.add(Pair(parentAddr, parentState))
-                        }
-                    }
-                    val event = MetadataEvent(date, node!!, ts, stableTs, children, parents)
-                    allEvents.add(event)
+                "CHILD-METADATA" -> {
+                    val childAddr = InetAddress.getByName(tokens[4].split(":")[0]) as Inet4Address
+                    val metadata = tokens[5]
+                    allEvents.add(ChildMetadata(date, node!!, childAddr, metadata))
                 }
             }
+
         }
     }
     allEvents.sortBy { it.timestamp }

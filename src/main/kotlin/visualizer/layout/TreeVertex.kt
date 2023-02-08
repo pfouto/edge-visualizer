@@ -6,24 +6,61 @@ import java.net.Inet4Address
 
 class TreeVertex(val node: String, val addr: Inet4Address) {
 
-    enum class State { ACTIVE, INACTIVE }
-    enum class TreeState { ACTIVE, INACTIVE }
+    enum class ManagerState { ACTIVE, INACTIVE }
+    enum class TreeState { INACTIVE, DATACENTER, PARENT_CONNECTING, PARENT_SYNC, PARENT_READY }
 
     var alive = true
-    var state = State.INACTIVE
+
+    var managerState = ManagerState.INACTIVE
+    var treeState = TreeState.INACTIVE
 
     var ts = ""
     var stableTs = ""
+
+
+    var parent: TreeVertex? = null
+    var grandparents: MutableList<TreeVertex> = mutableListOf()
+    var parentMetadata: List<String> = emptyList()
+
     var children: MutableMap<TreeVertex, String> = mutableMapOf()
-    var parents: MutableMap<TreeVertex, String> = mutableMapOf()
+
+    var active: MutableList<TreeVertex> = mutableListOf()
+    var passive: MutableList<TreeVertex> = mutableListOf()
 
     fun panelText(): String {
         val sb = StringBuilder()
         sb.append("$node\n")
-        sb.append("  Parents: ${parents.size}\n")
-        parents.forEach { sb.append("    ${it.key.node} ${it.value}\n") }
+        sb.append("  ManagerState: $managerState\n")
+        sb.append("  TreeState: $treeState\n")
+        sb.append("\n")
+        sb.append("  Parent:\n")
+        if (parent != null) {
+            sb.append("    ${parent!!.node}")
+            if (parentMetadata.isNotEmpty())
+                sb.append(": ${parentMetadata[0]}\n")
+            else
+                sb.append("\n")
+        }
+
+        sb.append("  Grandparents: ${grandparents.size}\n")
+        grandparents.forEachIndexed  { index, it ->
+            sb.append("    ${it.node}")
+            if (parentMetadata.size > index + 1)
+                sb.append(": ${parentMetadata[index + 1]}\n")
+            else
+                sb.append("\n")
+        }
+        sb.append("\n")
+
         sb.append("  Children: ${children.size}\n")
         children.forEach { sb.append("    ${it.key.node} ${it.value}\n") }
+
+        sb.append("\n")
+        sb.append("  Active: ${active.size}\n")
+        active.forEach { sb.append("    ${it.node}\n") }
+        sb.append("  Passive: ${passive.size}\n")
+        passive.forEach { sb.append("    ${it.node}\n") }
+
         return sb.toString()
     }
 
@@ -47,9 +84,12 @@ class TreeVertex(val node: String, val addr: Inet4Address) {
         return if (!alive && !selected ) Color.BLACK
         else if (!alive && selected) Color.DARK_GRAY.brighter()
         else if (selected) Color.RED
-        else when (state){
-            State.INACTIVE -> Color.LIGHT_GRAY
-            State.ACTIVE -> Color.GREEN
+        else when (treeState){
+            TreeState.INACTIVE -> Color.GRAY
+            TreeState.DATACENTER -> Color.BLUE
+            TreeState.PARENT_CONNECTING -> Color.GREEN.brighter()
+            TreeState.PARENT_SYNC -> Color.GREEN
+            TreeState.PARENT_READY -> Color.GREEN.darker()
         }
     }
 
