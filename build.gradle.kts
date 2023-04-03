@@ -17,6 +17,7 @@ dependencies {
     implementation("com.github.tomnelson:jungrapht-visualization:1.3")
     implementation("com.github.tomnelson:jungrapht-visualization-samples:1.3")
     implementation("com.github.tomnelson:jungrapht-layout:1.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 }
 
 tasks.test {

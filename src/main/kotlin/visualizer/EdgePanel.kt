@@ -3,6 +3,7 @@ package visualizer
 import org.jgrapht.Graph
 import org.jgrapht.graph.AsSubgraph
 import org.jgrapht.graph.DirectedMultigraph
+import org.jgrapht.graph.SimpleDirectedGraph
 import org.jungrapht.visualization.VisualizationScrollPane
 import org.jungrapht.visualization.VisualizationViewer
 import org.jungrapht.visualization.control.DefaultGraphMouse
@@ -57,11 +58,13 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
 
     private val eventsList: JList<Event>
 
+    private val filteredEvents: List<Event>
+
     private val infoPanelText: JTextArea
 
+    private var lockList: Boolean = false
     init {
 
-        //fullGraph = SimpleDirectedGraph(TreeEdge::class.java)
         fullGraph = DirectedMultigraph(TreeEdge::class.java)
 
         layout = BorderLayout()
@@ -225,11 +228,16 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         val eventsPanel = JPanel()
         eventsPanel.layout = BoxLayout(eventsPanel, BoxLayout.Y_AXIS)
         val eventsPanelLabel = JLabel("All events:")
-        eventsList = JList(allEvents.toTypedArray())
+
+        filteredEvents = allEvents.filter { it !is MetadataEvent && it !is ActiveEvent }
+
+        eventsList = JList(filteredEvents.toTypedArray())
 
         eventsList.addListSelectionListener { e: ListSelectionEvent ->
-            val source = e.source as JList<*>
-            jumpToEvent(source.selectedIndex, true, false)
+            if(!lockList) {
+                val source = e.source as JList<*>
+                jumpToEvent(filteredEvents[source.selectedIndex].index, true, false)
+            }
         }
 
         val scrollPanel = JScrollPane(eventsList)
@@ -302,8 +310,18 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
             }
 
             if(updateList){
-                eventsList.selectedIndex = currentEvent
-                eventsList.ensureIndexIsVisible(currentEvent)
+                //Find the event in filteredList with the index closest to currentEvent
+                var closest = 0
+                for (i in filteredEvents.indices) {
+                    if ((filteredEvents[i].index <= currentEvent) && (i > closest)) {
+                        closest = i
+                    }
+                }
+
+                lockList = true
+                eventsList.selectedIndex = closest
+                eventsList.ensureIndexIsVisible(closest)
+                lockList = false
             }
 
             reloadInfoPanel()
@@ -436,6 +454,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
                                 throw Exception("Edge not found")
                             checkIfCanDelete(oldParent)
                         }
+                        vertex.parent = null
                         vertex.grandparents = mutableListOf()
                         vertex.parentMetadata = mutableListOf()
                     }

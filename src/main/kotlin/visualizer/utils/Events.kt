@@ -8,7 +8,7 @@ import java.util.*
 val dateFormat = SimpleDateFormat("yy/MM/dd HH:mm:ss,SSS")
 val dateFormatNoDate = SimpleDateFormat("HH:mm:ss,SSS")
 
-abstract class Event(val timestamp: Date, val node: String) {
+abstract class Event(val timestamp: Date, val node: String, var index: Int = -1) {
     override fun toString(): String {
         return "${dateFormatNoDate.format(timestamp)} $node"
     }

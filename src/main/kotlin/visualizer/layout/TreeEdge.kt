@@ -11,7 +11,7 @@ class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) 
                 TreeVertex.TreeState.PARENT_CONNECTING -> Type.CONNECTING_PARENT
                 TreeVertex.TreeState.PARENT_SYNC -> Type.SYNC_PARENT
                 TreeVertex.TreeState.PARENT_READY -> Type.READY_PARENT
-                else -> throw IllegalArgumentException("Invalid tree state")
+                else -> throw IllegalArgumentException("Invalid tree state $treeState")
             }
         }
     }
