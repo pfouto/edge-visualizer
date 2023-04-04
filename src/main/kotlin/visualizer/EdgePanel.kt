@@ -28,6 +28,7 @@ import java.awt.event.MouseListener
 import java.awt.geom.Ellipse2D
 import java.net.Inet4Address
 import java.text.SimpleDateFormat
+import java.time.Duration
 import java.util.*
 import java.util.function.Function
 import javax.swing.*
@@ -164,6 +165,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         val lastDate = allEvents.last().timestamp
         startTimeMillis = firstDate.time
         endTimeMillis = lastDate.time
+
         val sliderLabelMin = JLabel(dateFormat.format(firstDate))
         val sliderLabelMax = JLabel(dateFormat.format(lastDate))
 
@@ -171,7 +173,8 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         timeSlider.addChangeListener { e: ChangeEvent ->
             val source = e.source as JSlider
             val date = Date(source.value + startTimeMillis)
-            sliderLabelCurrentTime.text = dateFormat.format(date)
+            sliderLabelCurrentTime.text = dateFormat.format(date) +
+                    " (+" + Duration.between(firstDate.toInstant(), date.toInstant()).toMillis()/1000f + "s)"
             if (!internalChanging && !source.valueIsAdjusting) jumpToTime(source.value)
         }
         timeSlider.majorTickSpacing = 60000
