@@ -14,9 +14,9 @@ abstract class Event(val timestamp: Date, val node: String, var index: Int = -1)
     }
 }
 
-class HelloEvent(timestamp: Date, node: String, val addr: Inet4Address) : Event(timestamp, node) {
+class HelloEvent(timestamp: Date, node: String, val addr: Inet4Address, val location: Pair<Double, Double>) : Event(timestamp, node) {
     override fun toString(): String {
-        return "${super.toString()} Hello ${addr.hostAddress}"
+        return "${super.toString()} Hello ${addr.hostAddress} ${location.first} ${location.second}"
     }
 }
 
@@ -64,7 +64,7 @@ class TreeStateEvent(
 }
 
 
-enum class ChildState { SYNC, READY, DISCONNECTED }
+enum class ChildState {CONNECTED, SYNC, READY, DISCONNECTED }
 
 class ChildEvent(timestamp: Date, node: String, val child: Inet4Address, val state: ChildState) :
     TreeEvent(timestamp, node) {

@@ -3,11 +3,12 @@ package visualizer.layout
 import org.jungrapht.visualization.VisualizationViewer
 import java.awt.Color
 import java.net.Inet4Address
+import java.text.DecimalFormat
 
-class TreeVertex(val node: String, val addr: Inet4Address) {
+class TreeVertex(val node: String, val addr: Inet4Address, val location: Pair<Double, Double>) {
 
     enum class ManagerState { ACTIVE, INACTIVE }
-    enum class TreeState { INACTIVE, DATACENTER, PARENT_CONNECTING, PARENT_SYNC, PARENT_READY }
+    enum class TreeState { INACTIVE, DATACENTER, PARENT_CONNECTING, PARENT_CONNECTED, PARENT_SYNC, PARENT_READY }
 
     var alive = true
 
@@ -32,8 +33,11 @@ class TreeVertex(val node: String, val addr: Inet4Address) {
         sb.append("$node\n")
         sb.append("  ManagerState: $managerState\n")
         sb.append("  TreeState: $treeState\n")
+        sb.append("  Location: \n")
+        sb.append("    ${location.first}\n")
+        sb.append("    ${location.second}\n")
         sb.append("\n")
-        sb.append("  Parent:\n")
+        sb.append("  Parents (${1+grandparents.size}):\n")
         if (parent != null) {
             sb.append("    ${parent!!.node}")
             if (parentMetadata.isNotEmpty())
@@ -42,7 +46,6 @@ class TreeVertex(val node: String, val addr: Inet4Address) {
                 sb.append("\n")
         }
 
-        sb.append("  Grandparents: ${grandparents.size}\n")
         grandparents.forEachIndexed  { index, it ->
             sb.append("    ${it.node}")
             if (parentMetadata.size > index + 1)
@@ -88,8 +91,9 @@ class TreeVertex(val node: String, val addr: Inet4Address) {
             TreeState.INACTIVE -> Color.GRAY
             TreeState.DATACENTER -> Color.BLUE
             TreeState.PARENT_CONNECTING -> Color.GREEN.brighter()
-            TreeState.PARENT_SYNC -> Color.GREEN
-            TreeState.PARENT_READY -> Color.GREEN.darker()
+            TreeState.PARENT_CONNECTED -> Color.GREEN
+            TreeState.PARENT_SYNC -> Color.GREEN.darker()
+            TreeState.PARENT_READY -> Color.GREEN.darker().darker()
         }
     }
 

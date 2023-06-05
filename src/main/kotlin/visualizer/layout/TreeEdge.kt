@@ -16,15 +16,20 @@ class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) 
         }
     }
 
-    enum class Type { CONNECTING_PARENT, SYNC_PARENT, READY_PARENT, SYNC_CHILD, READY_CHILD, VIEW_ACTIVE, VIEW_PASSIVE }
+    enum class Type { CONNECTING_PARENT, CONNECTED_PARENT, SYNC_PARENT, READY_PARENT,
+        CONNECTED_CHILD, SYNC_CHILD, READY_CHILD, VIEW_ACTIVE, VIEW_PASSIVE }
 
     fun paintMe(vv: VisualizationViewer<TreeVertex, TreeEdge>): Color {
         return when (type) {
             Type.CONNECTING_PARENT -> Color.CYAN
-            Type.SYNC_PARENT -> Color.BLUE
+            Type.SYNC_PARENT -> Color.BLUE.brighter()
+            Type.CONNECTED_PARENT -> Color.BLUE
             Type.READY_PARENT -> Color.BLUE.darker()
-            Type.SYNC_CHILD -> Color.GREEN.brighter()
+
+            Type.CONNECTED_CHILD -> Color.GREEN.brighter()
+            Type.SYNC_CHILD -> Color.GREEN
             Type.READY_CHILD -> Color.GREEN.darker()
+
             Type.VIEW_PASSIVE -> Color.YELLOW.darker()
             Type.VIEW_ACTIVE -> Color.ORANGE.darker()
         }

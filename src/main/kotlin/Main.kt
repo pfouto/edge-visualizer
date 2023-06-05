@@ -1,4 +1,3 @@
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -30,85 +29,92 @@ suspend fun readFile(file: File, channel: Channel<Event>) {
     var node: String? = null
     var goodbye = false
     val reader = file.inputStream().bufferedReader()
-
+    var lineNumber = 0
     for (it in reader.lines()){
-        if (goodbye) break
+        lineNumber++
+        try {
+            if (goodbye) break
 
-        val tokens = it.split(" ")
-        //val logLevel = tokens[0]
-        val date = dateFormat.parse(tokens[1])
-        //val className = tokens[2]
-        val eventType = tokens[4]
-        when (eventType) {
-            //General events
-            "Hello" -> {
-                node = tokens[7]
-                val nodeAddr = InetAddress.getByName(tokens[8]) as Inet4Address
-                channel.send(HelloEvent(date, node!!, nodeAddr))
-            }
+            val tokens = it.split(" ")
+            //val logLevel = tokens[0]
+            val date = dateFormat.parse(tokens[1])
+            //val className = tokens[2]
+            val eventType = tokens[4]
+            when (eventType) {
+                //General events
+                "Hello" -> {
+                    node = tokens[7]
+                    val nodeAddr = InetAddress.getByName(tokens[8]) as Inet4Address
+                    val location = Pair<Double, Double>(tokens[9].toDouble(), tokens[10].toDouble())
+                    channel.send(HelloEvent(date, node!!, nodeAddr, location))
+                }
 
-            "Goodbye" -> {
-                channel.send(GoodbyeEvent(date, node!!))
-                goodbye = true
-            }
+                "Goodbye" -> {
+                    channel.send(GoodbyeEvent(date, node!!))
+                    goodbye = true
+                }
 
-            //HyParView events
-            "ACTIVE" -> {
-                val peer = InetAddress.getByName(tokens[6]) as Inet4Address
-                channel.send(ActiveEvent(date, node!!, peer, tokens[5] == "Added"))
-            }
-            /*"PASSIVE" -> {
+                //HyParView events
+                "ACTIVE" -> {
+                    val peer = InetAddress.getByName(tokens[6]) as Inet4Address
+                    channel.send(ActiveEvent(date, node!!, peer, tokens[5] == "Added"))
+                }
+                /*"PASSIVE" -> {
             val peer = InetAddress.getByName(tokens[5]) as Inet4Address
             allEvents.add(PassiveEvent(date, node!!, peer, tokens[4] == "Added"))
             }*/
 
-            //Manager Events
-            "MANAGER-STATE" -> {
-                val newState = TreeVertex.ManagerState.valueOf(tokens[5])
-                channel.send(ManagerStateEvent(date, node!!, newState))
-            }
-
-            //Tree structure events
-            "TREE-STATE" -> {
-                val newState = TreeVertex.TreeState.valueOf(tokens[5])
-
-                var parentAddress: Inet4Address? = null
-                val grandparents: MutableList<Inet4Address> = mutableListOf()
-
-                if (newState != TreeVertex.TreeState.INACTIVE && newState != TreeVertex.TreeState.DATACENTER) {
-                    parentAddress = InetAddress.getByName(tokens[6].split(":")[0]) as Inet4Address
-
-                    val rawGrandparents = tokens[7]
-                    //Remove surrounding brackets and split by comma and trim
-                    val grandparentsString =
-                        rawGrandparents.substring(1, rawGrandparents.length - 1).trim().split(",")
-
-                    for (grandparent in grandparentsString) {
-                        if (grandparent.isEmpty()) continue
-                        grandparents.add(InetAddress.getByName(grandparent.split(":")[0]) as Inet4Address)
-                    }
+                //Manager Events
+                "MANAGER-STATE" -> {
+                    val newState = TreeVertex.ManagerState.valueOf(tokens[5])
+                    channel.send(ManagerStateEvent(date, node!!, newState))
                 }
 
-                channel.send(TreeStateEvent(date, node!!, parentAddress, newState, grandparents))
-            }
+                //Tree structure events
+                "TREE-STATE" -> {
+                    val newState = TreeVertex.TreeState.valueOf(tokens[5])
 
-            "PARENT-METADATA" -> {
-                val metadataRaw = tokens[5]
-                val metadatas = metadataRaw.substring(1, metadataRaw.length - 1).split(":")
-                channel.send(ParentMetadata(date, node!!, metadatas))
-            }
+                    var parentAddress: Inet4Address? = null
+                    val grandparents: MutableList<Inet4Address> = mutableListOf()
 
-            "CHILD" -> {
-                val newState = ChildState.valueOf(tokens[5])
-                val childAddr = InetAddress.getByName(tokens[6].split(":")[0]) as Inet4Address
-                channel.send(ChildEvent(date, node!!, childAddr, newState))
-            }
+                    if (newState != TreeVertex.TreeState.INACTIVE && newState != TreeVertex.TreeState.DATACENTER) {
+                        parentAddress = InetAddress.getByName(tokens[6].split(":")[0]) as Inet4Address
 
-            "CHILD-METADATA" -> {
-                val childAddr = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
-                val metadata = tokens[6]
-                channel.send(ChildMetadata(date, node!!, childAddr, metadata))
+                        val rawGrandparents = tokens[7]
+                        //Remove surrounding brackets and split by comma and trim
+                        val grandparentsString =
+                            rawGrandparents.substring(1, rawGrandparents.length - 1).trim().split(",")
+
+                        for (grandparent in grandparentsString) {
+                            if (grandparent.isEmpty()) continue
+                            grandparents.add(InetAddress.getByName(grandparent.split(":")[0]) as Inet4Address)
+                        }
+                    }
+
+                    channel.send(TreeStateEvent(date, node!!, parentAddress, newState, grandparents))
+                }
+
+                "PARENT-METADATA" -> {
+                    val metadataRaw = tokens[5]
+                    val metadatas = metadataRaw.substring(1, metadataRaw.length - 1).split(":")
+                    channel.send(ParentMetadata(date, node!!, metadatas))
+                }
+
+                "CHILD" -> {
+                    val newState = ChildState.valueOf(tokens[5])
+                    val childAddr = InetAddress.getByName(tokens[6].split(":")[0]) as Inet4Address
+                    channel.send(ChildEvent(date, node!!, childAddr, newState))
+                }
+
+                "CHILD-METADATA" -> {
+                    val childAddr = InetAddress.getByName(tokens[5].split(":")[0]) as Inet4Address
+                    val metadata = tokens[6]
+                    channel.send(ChildMetadata(date, node!!, childAddr, metadata))
+                }
             }
+        } catch (e: Exception){
+            println("Error parsing line: ${file.name} $lineNumber $it ")
+            throw e
         }
     }
 }

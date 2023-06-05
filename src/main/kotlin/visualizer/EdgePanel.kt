@@ -16,6 +16,7 @@ import org.jungrapht.visualization.layout.algorithms.util.InitialDimensionFuncti
 import org.jungrapht.visualization.layout.model.LayoutModel
 import org.jungrapht.visualization.layout.model.Rectangle
 import org.jungrapht.visualization.renderers.Renderer
+import org.jungrapht.visualization.util.LayoutAlgorithmTransition
 import visualizer.layout.TreeEdge
 import visualizer.layout.TreeVertex
 import visualizer.utils.*
@@ -47,8 +48,8 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
     private val vv: VisualizationViewer<TreeVertex, TreeEdge>
 
     private val staticLayoutAlgorithm: StaticLayoutAlgorithm<TreeVertex>
-    private val treeLayoutAlgorithm: LayoutAlgorithm<TreeVertex>
-    private val radialLayoutAlgorithm: LayoutAlgorithm<TreeVertex>
+    //private val treeLayoutAlgorithm: LayoutAlgorithm<TreeVertex>
+    //private val radialLayoutAlgorithm: LayoutAlgorithm<TreeVertex>
 
     private val sliderLabelCurrentTime: JLabel
     private val sliderLabelCurrentLine: JLabel
@@ -70,8 +71,8 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
 
         layout = BorderLayout()
 
-        val width = 30
-        val height = 30
+        val width = 35
+        val height = 35
         val vertexShapeFunction = Function<TreeVertex, Shape> {
             Ellipse2D.Float(-width / 2f, -height / 2f, width.toFloat(), height.toFloat())
         }
@@ -83,12 +84,12 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
 
 
         val graphMouse = DefaultGraphMouse<TreeVertex, TreeEdge>()
-
+/*
         treeLayoutAlgorithm = TreeLayoutAlgorithm()
         treeLayoutAlgorithm.setVertexBoundsFunction { vertexBoundsFunction }
         radialLayoutAlgorithm = RadialTreeLayoutAlgorithm()
         radialLayoutAlgorithm.setVertexBoundsFunction { vertexBoundsFunction }
-
+*/
 
         //VisViewer builder
         val builder: VisualizationViewer.Builder<TreeVertex, TreeEdge, *, *> = VisualizationViewer.builder(fullGraph)
@@ -96,6 +97,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         builder.viewSize(Dimension(1500, 1000))
         builder.graphMouse(graphMouse)
         builder.layoutAlgorithm(staticLayoutAlgorithm)
+
         vv = builder.build() as VisualizationViewer<TreeVertex, TreeEdge>
 
         //How to draw vertexes
@@ -333,7 +335,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
     }
 
     private fun redraw() {
-        val treeGraph = AsSubgraph(
+/*        val treeGraph = AsSubgraph(
             fullGraph, fullGraph.vertexSet(), fullGraph.edgeSet()
                 .filter { it.type == TreeEdge.Type.READY_CHILD }.toSet()
         )
@@ -342,15 +344,17 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
             .size(500, 500)
             .build() as LayoutModel<TreeVertex>
 
+
         treeLayoutAlgorithm.visit(treeLayoutModel)
         radialLayoutAlgorithm.visit(treeLayoutModel)
         for (location in treeLayoutModel.locations) {
             vv.visualizationModel.layoutModel.set(location.key, location.value)
         }
-        //val newAlgorithm = StaticLayoutAlgorithm<TreeVertex>()
-        //LayoutAlgorithmTransition.animate(vv, treeLayoutAlgorithm)
-        //vv.visualizationModel.layoutModel.accept(layoutAlgorithm)
-        //vv.scaleToLayout(true)
+ */
+        /*val newAlgorithm = StaticLayoutAlgorithm<TreeVertex>()
+        LayoutAlgorithmTransition.animate(vv, newAlgorithm)
+        vv.visualizationModel.layoutModel.accept(newAlgorithm)*/
+        vv.scaleToLayout(true)
         vv.fireStateChanged()
         vv.repaint()
     }
@@ -361,9 +365,10 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         //println(event)
         when (event) {
             is HelloEvent -> {
-                val vertex = TreeVertex(event.node, event.addr)
+                val vertex = TreeVertex(event.node, event.addr, event.location)
                 vertexByName[event.node] = vertex
                 vertexByAddr[event.addr] = vertex
+                vv.visualizationModel.layoutModel.set(vertex, vertex.location.first*3, vertex.location.second*3)
                 fullGraph.addVertex(vertex)
             }
 
@@ -430,9 +435,18 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
                         fullGraph.addEdge(vertex, newParent, TreeEdge(vertex, newParent, TreeEdge.Type.CONNECTING_PARENT))
                     }
 
-                    TreeVertex.TreeState.PARENT_SYNC -> {
+                    TreeVertex.TreeState.PARENT_CONNECTED -> {
                         val parent = vertexByAddr[event.parent]!!
                         if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.CONNECTING_PARENT)))
+                            throw Exception("Edge not found")
+                        fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.CONNECTED_PARENT))
+
+                        vertex.grandparents = event.grandparents.map { vertexByAddr[it]!! }.toMutableList()
+                        vertex.parentMetadata = mutableListOf()
+                    }
+                    TreeVertex.TreeState.PARENT_SYNC -> {
+                        val parent = vertexByAddr[event.parent]!!
+                        if (!fullGraph.removeEdge(TreeEdge(vertex, parent, TreeEdge.Type.CONNECTED_PARENT)))
                             throw Exception("Edge not found")
                         fullGraph.addEdge(vertex, parent, TreeEdge(vertex, parent, TreeEdge.Type.SYNC_PARENT))
 
@@ -473,9 +487,17 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
                 val vertex = vertexByName[event.node]!!
                 val child = vertexByAddr[event.child]!!
                 when (event.state) {
-                    ChildState.SYNC -> {
-                        fullGraph.addEdge(vertex, child, TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
+                    ChildState.CONNECTED -> {
+
+                        fullGraph.addEdge(vertex, child, TreeEdge(vertex, child, TreeEdge.Type.CONNECTED_CHILD))
                         vertex.children[child] = ""
+
+                    }
+
+                    ChildState.SYNC -> {
+                        if (!fullGraph.removeEdge(TreeEdge(vertex, child, TreeEdge.Type.CONNECTED_CHILD)))
+                            throw Exception("Edge not found")
+                        fullGraph.addEdge(vertex, child, TreeEdge(vertex, child, TreeEdge.Type.SYNC_CHILD))
                     }
 
                     ChildState.READY -> {
