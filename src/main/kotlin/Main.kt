@@ -1,4 +1,5 @@
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import visualizer.EdgePanel
@@ -8,10 +9,10 @@ import java.io.File
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.text.SimpleDateFormat
+import javax.swing.JFileChooser
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.WindowConstants
-import kotlinx.coroutines.channels.Channel
 
 
 suspend fun readFile(file: File, channel: Channel<Event>) {
@@ -128,8 +129,13 @@ fun main(args: Array<String>) = runBlocking{
 
     val allEvents: MutableList<Event> = mutableListOf()
 
-    println("Reading log files from ${args[0]}... ")
-    val folder = File(args[0])
+    val f = JFileChooser(args[0])
+    f.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+    f.showSaveDialog(null)
+
+    println(f.currentDirectory)
+
+    val folder = f.selectedFile
     val files = folder.listFiles()
 
     val channel: Channel<Event> = Channel(1000)
