@@ -31,12 +31,12 @@ suspend fun readFile(file: File, channel: Channel<Event>) {
     var goodbye = false
     val reader = file.inputStream().bufferedReader()
     var lineNumber = 0
-    for (it in reader.lines()){
+    for (line in reader.lines()){
         lineNumber++
         try {
             if (goodbye) break
 
-            val tokens = it.split(" ")
+            val tokens = line.split(" ")
             //val logLevel = tokens[0]
             val date = dateFormat.parse(tokens[1])
             //val className = tokens[2]
@@ -114,7 +114,7 @@ suspend fun readFile(file: File, channel: Channel<Event>) {
                 }
             }
         } catch (e: Exception){
-            println("Error parsing line: ${file.name} $lineNumber $it ")
+            println("Error parsing line: ${file.name} $lineNumber $line ")
             throw e
         }
     }
