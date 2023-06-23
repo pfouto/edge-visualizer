@@ -354,7 +354,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
         /*val newAlgorithm = StaticLayoutAlgorithm<TreeVertex>()
         LayoutAlgorithmTransition.animate(vv, newAlgorithm)
         vv.visualizationModel.layoutModel.accept(newAlgorithm)*/
-        vv.scaleToLayout(true)
+        //vv.scaleToLayout(true)
         vv.fireStateChanged()
         vv.repaint()
     }
