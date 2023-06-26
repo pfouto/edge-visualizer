@@ -3,7 +3,6 @@ package visualizer.layout
 import org.jungrapht.visualization.VisualizationViewer
 import java.awt.Color
 import java.net.Inet4Address
-import java.text.DecimalFormat
 
 class TreeVertex(val node: String, val addr: Inet4Address, val location: Pair<Double, Double>) {
 

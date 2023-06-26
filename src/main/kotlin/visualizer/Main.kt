@@ -1,8 +1,9 @@
+package visualizer
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import visualizer.EdgePanel
 import visualizer.layout.TreeVertex
 import visualizer.utils.*
 import java.io.File
@@ -141,7 +142,7 @@ fun main(args: Array<String>) = runBlocking{
     val channel: Channel<Event> = Channel(1000)
     launch(Dispatchers.Default) {
         for (file in files) {
-            launch { readFile(file, channel)}
+            launch { readFile(file, channel) }
         }
     }.invokeOnCompletion { channel.close() }
 
