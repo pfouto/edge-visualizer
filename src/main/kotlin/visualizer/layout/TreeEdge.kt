@@ -36,6 +36,9 @@ class TreeEdge(val origin: TreeVertex, val destiny: TreeVertex, var type: Type) 
     }
 
     fun includeMe(vv: VisualizationViewer<TreeVertex, TreeEdge>): Boolean {
+        if(type == Type.READY_CHILD || type == Type.SYNC_CHILD || type == Type.CONNECTED_CHILD)
+            return false
+
         return if(vv.selectedVertices.contains(origin)){
             true
         } else {

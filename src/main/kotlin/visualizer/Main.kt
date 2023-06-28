@@ -47,8 +47,8 @@ suspend fun readFile(file: File, channel: Channel<Event>) {
                 "Hello" -> {
                     node = tokens[7]
                     val nodeAddr = InetAddress.getByName(tokens[8]) as Inet4Address
-                    val location = Pair<Double, Double>(tokens[9].toDouble(), tokens[10].toDouble())
-                    channel.send(HelloEvent(date, node!!, nodeAddr, location))
+                    val location = Pair(tokens[9].toDouble(), tokens[10].toDouble())
+                    channel.send(HelloEvent(date, node, nodeAddr, location))
                 }
 
                 "Goodbye" -> {
@@ -137,7 +137,7 @@ fun main(args: Array<String>) = runBlocking{
     println(f.currentDirectory)
 
     val folder = f.selectedFile
-    val files = folder.listFiles()
+    val files = folder.listFiles()!!
 
     val channel: Channel<Event> = Channel(1000)
     launch(Dispatchers.Default) {
