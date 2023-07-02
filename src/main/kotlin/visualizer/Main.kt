@@ -24,10 +24,10 @@ suspend fun readFile(file: File, channel: Channel<Event>) {
         return
     }
     if (file.extension != "log") {
-        println("Skipping file ${file.name}")
+        //println("Skipping file ${file.name}")
         return
     }
-    println(file.name + " " + Thread.currentThread())
+    //println(file.name + " " + Thread.currentThread())
     var node: String? = null
     var goodbye = false
     val reader = file.inputStream().bufferedReader()
@@ -135,6 +135,7 @@ fun main(args: Array<String>) = runBlocking{
     f.showSaveDialog(null)
 
     println(f.currentDirectory)
+    println(f.selectedFile)
 
     val folder = f.selectedFile
     val files = folder.listFiles()!!
