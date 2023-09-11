@@ -102,7 +102,7 @@ class EdgePanel(private val allEvents: List<Event>, maxIntervalIdx: Int) : JPane
 
         //How to draw vertexes
         vv.renderContext.vertexShapeFunction = vertexShapeFunction
-        vv.renderContext.setVertexLabelFunction { v: TreeVertex -> v.node.split("-")[1] }
+        //vv.renderContext.setVertexLabelFunction { v: TreeVertex -> v.node.split("-")[1] }
         vv.renderContext.vertexLabelPosition = Renderer.VertexLabel.Position.CNTR
         vv.renderContext.setVertexLabelDrawPaintFunction { Color.white }
         vv.renderContext.setVertexFontFunction { Font("Helvetica", Font.BOLD, 12) }
