@@ -128,17 +128,22 @@ fun main(args: Array<String>) = runBlocking{
         return@runBlocking
     }
 
-    val allEvents: MutableList<Event> = mutableListOf()
+    val fileses = File(args[0]).listFiles()!!
 
-    val f = JFileChooser(args[0])
-    f.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-    f.showSaveDialog(null)
+    var folder: File? = null
+    if(fileses.any { it.extension == "log" }){
+        folder = File(args[0])
+    } else {
+        val f = JFileChooser(args[0])
+        f.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+        f.showSaveDialog(null)
 
-    println(f.currentDirectory)
-    println(f.selectedFile)
+        println(f.currentDirectory)
+        println(f.selectedFile)
+        folder = f.selectedFile
+    }
 
-    val folder = f.selectedFile
-    val files = folder.listFiles()!!
+    val files = folder!!.listFiles()!!
 
     val channel: Channel<Event> = Channel(1000)
     launch(Dispatchers.Default) {
@@ -147,6 +152,7 @@ fun main(args: Array<String>) = runBlocking{
         }
     }.invokeOnCompletion { channel.close() }
 
+    val allEvents: MutableList<Event> = mutableListOf()
 
     for (event in channel) {
         allEvents.add(event)
